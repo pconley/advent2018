@@ -107,10 +107,14 @@ def apply():
 # convert initial state to a boolean state array
 state = [ (x=='#') for x in initial_state]
 mprint(0,state)
+generations = 50000000000
 for i in range(20):
     apply()
-    mprint(i+1,state)
+    if i+1 % 100 == 0 :
+        mprint(i+1,state)
 
+mprint(0,state)
+        
 total = 0
 print("origin = ", origin)
 for i in range(len(state)):
