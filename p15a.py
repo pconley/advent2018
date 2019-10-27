@@ -6,7 +6,7 @@ rows = [ # example 1
     "#######",
 ]
 
-xrows = [ # example 2
+rows = [ # example 2
     "#######",
     "#.E...#",
     "#.....#",
@@ -14,11 +14,22 @@ xrows = [ # example 2
     "####### ",
 ]
 
-map = [ [x for x in row] for row in rows ]
+rows = [
+    "#########",
+    "#G..G..G#",
+    "#.......#",
+    "#.......#",
+    "#G..E..G#",
+    "#.......#",
+    "#.......#",
+    "#G..G..G#",
+    "#########",
+]
+
+map = []
 
 def mstring(map):
     return "\n".join([ "".join(row) for row in map ])
-
 
 ELF = "E"
 GOB = "G"
@@ -30,10 +41,6 @@ class Creature:
         self.points = 200
         self.power = 3
 
-creatures = {
-    ELF : [],
-    GOB : []
-}
 
 def adjacents(pos):
     (r,c) = pos
@@ -53,14 +60,6 @@ def is_empty(pos):
 
 def empty(arr):
     return [ x for x in arr if is_empty(x) ]
-
-
-for i in range(len(map)):
-    row = map[i]
-    for j in range(len(row)):
-        marker = row[j]
-        if( is_race(marker) ):
-            creatures[marker].append(Creature(marker,(i,j)))
 
 def cstring(arr):
     return " ".join([ "({},{})".format(x.pos[0],x.pos[1]) for x in arr])
@@ -149,18 +148,34 @@ def select_path(creature):
 
     return nearest_paths[0] 
 
-##### 
 
-print(mstring(map))
-print("Elves:",cstring(creatures[ELF]))
-print("Goblins:",cstring(creatures[GOB]))
+def main():
 
-elf = creatures[ELF][0]
+    map = [ [x for x in row] for row in rows ]
 
-path = select_path(elf)
-print("path = ",path)
+    print(mstring(map))
 
-print("target", path[-1])
-print(mstring(msetter(map,"!",[path[-1]])))
-print("move". path[1])
-print(mstring(msetter(map,"+",[path[1]])))
+    creatures = []
+
+    for i in range(len(map)):
+        row = map[i]
+        for j in range(len(row)):
+            marker = row[j]
+            if( is_race(marker) ):
+                creatures.append(Creature(marker,(i,j)))
+
+    print("creatures:",creatures)
+
+        
+
+    elf = creatures[0]
+
+    path = select_path(elf)
+    print("path = ",path)
+
+    print("target", path[-1])
+    print(mstring(msetter(map,"!",[path[-1]])))
+    print("move". path[1])
+    print(mstring(msetter(map,"+",[path[1]])))
+
+main()
