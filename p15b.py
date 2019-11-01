@@ -1,50 +1,4 @@
-xrows = [ # example 1
-    "#######",
-    "#E..G.#",
-    "#...#.#",
-    "#.G.#G#",
-    "#######",
-]
-
-xrows = [ # my test example
-    "#######",
-    "#E....#",
-    "#...#.#",
-    "#.G.#G#",
-    "#######",
-]
-
-xrows = [ # example 2
-    "#######",
-    "#.E...#",
-    "#.....#",
-    "#...G.#",
-    "####### ",
-]
-
-xrows = [
-    "#########",
-    "#G..G..G#",
-    "#.......#",
-    "#.......#",
-    "#G..E..G#",
-    "#.......#",
-    "#.......#",
-    "#G..G..G#",
-    "#########",
-]
-
-xrows = [  # full combat example
-    "#######",
-    "#.G...#",
-    "#...EG#",
-    "#.#.#G#",
-    "#..G#E#",
-    "#.....#",
-    "#######",
-]
-
-map = []
+map = [] # a global
 
 def mstring(map):
     text = ""
@@ -76,17 +30,17 @@ POWER = 3
 MAX_POINTS = 200
 
 class Marker:
-    def __init__(self,marker):
+    def __init__(self,marker,pow=0):
         self.marker = marker
         # some creature values
         self.points = MAX_POINTS
-        self.power = POWER
+        self.power = 3 if marker == GOB else pow
     def __str__(self):
         return self.marker
 
 def adjacents(pos):
     (r,c) = pos
-    # not this is very specifically the reading order
+    # note: this is very specifically the reading order
     return [(r-1,c),(r,c-1),(r,c+1),(r+1,c)]
 
 def is_player(marker):
@@ -103,33 +57,12 @@ def is_empty(pos):
 
 def contains(positions, marker):
     return [x for x in positions if mget(x).marker == marker]
-    # for pos in positions :
-    #     # if any match then true...
-    #     if mget(pos).marker == marker : return True
-    # return False
 
 def empty(positions):
     return [ x for x in positions if is_empty(x) ]
 
 def filter(positions,marker):
     return [ pos for pos in positions if mget(pos).marker == marker ]
-
-class Adjacents:
-  
-    def __init__(self,pos):
-        (self.r, self.c) = pos
-        self.adjs = adjacents(self.r,self.c)
- 
-    def __iter__(self):
-        self.counter = 0
-        return self
-
-    def __next__(self):
-        if self.counter < len(self.adjs):
-            self.counter += 1
-            return self.adjs[self.counter-1]
-        else:
-            raise StopIteration
 
 import sys
 import copy
@@ -152,71 +85,8 @@ def exit_after(n):
     exit_count += 1
     if exit_count >= n : exit()
 
-def find_path(pos1,pos2):
-    debug("find_path?",pos1,pos2)
-    # is there a path from pos1 to pos2?
-    q = queue.Queue()
-    q.put((pos1,[]))
-    visited = []
-    while not q.empty() :
-        (x,p2x) = q.get()
-        debug(x, p2x, visited)
-        # exit_after(5)
-        if x == pos2 :
-            # print("found with path",p2x+[x])
-            return (True,p2x+[x])
-        visited.append(x)
-        p2k = copy.deepcopy(p2x)
-        p2k.append(x)
-        # print("p2k =",p2k)
-        for k in empty(adjacents(x)):
-            if not k in visited :
-                q.put((k,p2k))
-    return (False,[])
-
 def second(path):
     return path[1]
-
-def select_path(tuple):
-    (player,pos) = tuple
-    other_marker = other(player.marker)
-    debug("select path:",player,pos)
-    opponent_tuples = get_player_tuples(map,other_marker)
-    positions = set([ x for (p,x) in opponent_tuples])
-    all_opponent_adjacents = set(xadjacents(positions))
-    debug("all_opponent_adjacents",all_opponent_adjacents)
-    opponent_spots = empty(all_opponent_adjacents)
-
-    debug("opponent spots:")
-    debug(mstring(msetter(map,"?",opponent_spots)))
-    path_tuples = [
-        (pos,x) for x in opponent_spots]
-    debug("paths tuples = ",path_tuples)
-    paths = [p for (x,p) in path_tuples if x]
-    debug("paths = ",paths)
-    if not paths : return None
-
-    debug("paths:")
-    for p in paths : debug(p)
-    debug("reachable:")
-    reachable_spots = [p[-1] for p in paths]
-    debug(mstring(msetter(map,"@",reachable_spots)))
-
-    shortest_len = min([len(p) for p in paths])
-    nearest_paths = [p for p in paths if len(p) == shortest_len ]
-    # second spot in the path is the first move to take
-    nearest_paths.sort(key=second)
-
-    debug("nearest:")
-    for p in nearest_paths: debug(p)
-    debug("nearest one:",nearest_paths[0])
-    nearest_spots = [p[-1] for p in nearest_paths]
-    debug(mstring(msetter(map,"+",[nearest_spots[0]])))
-
-    # return the PATH to the nearest reachable adjacent 
-    # spot that is sorted by reading order
-
-    return nearest_paths[0] 
 
 def get_player_tuples(map,target_marker=None):
     tuples = []
@@ -238,7 +108,10 @@ def find_by_attr(targets,value,field):
     results = []
     return results
 
+dead_elves = 0
+
 def attack(player,pos,neighbor_positions):
+    global dead_elves
     low = MAX_POINTS+1
     for (r,c) in neighbor_positions :
         n = map[r][c]
@@ -247,20 +120,22 @@ def attack(player,pos,neighbor_positions):
             save_pos = (r,c)
     # debug("lowest is",low,save_pos,save_obj)
     all_lowest = [x for x in neighbor_positions if mget(x).points == low]
-    if len(all_lowest) > 1 : 
-        print("**********",len(all_lowest))
-        print(all_lowest)
-        print(sorted(all_lowest)[0])
+    # if len(all_lowest) > 1 : 
+    #     print("**********",len(all_lowest))
+    #     print(all_lowest)
+    #     print(sorted(all_lowest)[0])
     
     save_pos = sorted(all_lowest)[0]
     save_obj = mget(save_pos)
     save_obj.points = max(0,save_obj.points-player.power)
-    debug("attack", player, pos, "hits", save_obj, save_pos, "result=", save_obj.points)
+    # debug("attack", player, pos, "hits", save_obj, save_pos, "result=", save_obj.points)
     if save_obj.points == 0 :
         # debug("attack", player, pos, "hits", save_obj, save_pos, "result=", save_obj.points)
 
         # remove the saved object by setting to empty
-        debug("remove",save_obj,save_pos)
+        if save_obj.marker == ELF :
+            dead_elves += 1
+        # debug("remove",save_obj,save_pos)
         mset(save_pos,Marker('.'),map)
         remaining = get_player_tuples(map,save_obj.marker)
         if len(remaining) == 0 :
@@ -271,8 +146,8 @@ def attack(player,pos,neighbor_positions):
 def main():
 
     global map
-    print("Initially:")
-    print(mstring(map))
+    # print("Initially:")
+    # print(mstring(map))
 
     for round in range(300):
         players = get_player_tuples(map)
@@ -305,15 +180,14 @@ def main():
                             break
 
         else:
-            # if round in [0,1,3,4,5,22,23,24,25,26,27]:
-            print("After {} Rounds:".format(round+1))
-            print(mstring(map))
+            # print("After {} Rounds:".format(round+1))
+            # print(mstring(map))
             continue
 
         break
 
-    print("\nFinal:".format(round+1))
-    print(mstring(map))
+    # print("\nFinal:".format(round+1))
+    # print(mstring(map))
 
     print("rounds = ",round)
     survivor_tuples = get_player_tuples(map)
@@ -383,6 +257,11 @@ print ('Argument List:', str(sys.argv))
 
 data_file = open(sys.argv[1],"r+")  
 rows = data_file.readlines()
-map = [ [Marker(x) for x in row.rstrip('\n')] for row in rows ]
-print("\n\n\n\n\n\n")
-main() 
+
+for pwr in range(3,100):
+    dead_elves = 0
+    print("\nPower = ",pwr)
+    map = [ [Marker(x,pwr) for x in row.rstrip('\n')] for row in rows ]
+    main() 
+    print("Dead Elves = ",dead_elves)
+    if dead_elves == 0 : break
