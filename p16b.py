@@ -70,7 +70,7 @@ def eqrr(reg,a,b,c):
 def test(func,start,expect,opcode,a,b,c):
     finish = func(start,a,b,c)
     match = "a match" if expect==finish else ""
-    print("as",func.__name__,[a,b,c],":",start,"=>",finish,"    ",expect,match)
+    # print("as",func.__name__,[a,b,c],":",start,"=>",finish,"    ",expect,match)
     return 1 if expect==finish else 0
 
 functions = [addr,addi,mulr,muli,banr,bani,borr,bori,setr,seti,gtir,gtri,gtrr,eqir,eqri,eqrr]
@@ -88,20 +88,59 @@ print("matches = ",matches)
 print ('Argument List:', str(sys.argv))
 data_file = open(sys.argv[1],"r+")  
 lines = data_file.readlines()
-s = 0
+
+triples = []
 n = 0
-threes = 0
 while n < len(lines) :
     before = [int(x) for x in lines[n].strip()[9:19].split(", ")]
     command = [int(x) for x in lines[n+1].strip().split(" ")]
     after = [int(x) for x in lines[n+2].strip()[9:19].split(", ")]
-    print(before,command,after)
-    matches = 0
-    for func in functions:  
-        matches += test(func,before,after,*command)
-    print(s,"matches = ",matches)
-    threes += 1 if matches >= 3 else 0
+    triples.append((command,before,after))
     n += 4
-    s += 1
 
-print("three or more",threes)
+codes = {}
+
+while len(functions) > 0:
+    temp = copy.deepcopy(triples)
+    s = 0
+    for (command,before,after) in temp :
+        s += 1
+        # print(before,command,after)
+        matches = 0
+        last_match = None
+        for func in functions:  
+            m = test(func,before,after,*command)
+            if m == 1 : last_match = func
+            matches += m
+        # print(s, "sample has function matches=",matches)
+        if matches == 1 : 
+            # print(s,"of",len(temp),(command,before,after),"sample has a singular match",command[0],last_match.__name__)
+            # triples.remove((command,before,after))
+            codes[command[0]] = last_match
+            to_remove = last_match
+            break
+    # print("remove",to_remove.__name__)
+    functions.remove(to_remove)
+    # input(str(len(functions))+" Continue?")
+
+i = 0
+for code in codes : 
+    print(i,code,":",codes[code].__name__)
+    i += 1
+
+# exit()
+
+pgm_file = open("p16pgm","r+")  
+lines = pgm_file.readlines()
+print("\nstart execution")
+registers = [0,0,0,0]
+k = 0
+print(registers)
+for line in lines : 
+    (opcode,a,b,c) = [ int(x) for x in line.strip().split()]
+    registers = codes[opcode](registers,a,b,c)
+    print(k,"of",len(lines),opcode,codes[opcode].__name__,":",a,b,c,">>",registers[0],"line=",k)
+    if k%100 == 0 : 
+        input("Continue?")
+    k += 1
+
