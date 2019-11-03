@@ -35,11 +35,11 @@ def down(pos):
 
 def sides(pos):
     (x,y) = pos
-    return [(x-1,y),(x+1,y)]
+    # return [(x-1,y),(x+1,y)]
 
     # randomize the left and right
-    # n = random.choice([-1,1])
-    # return [(x-n,y),(x+n,y)]
+    n = random.choice([-1,1])
+    return [(x-n,y),(x+n,y)]
 
 class Canvas:
     def __init__(self,dims):
@@ -79,6 +79,31 @@ class Canvas:
             area += "{:5d}: ".format(r)+"".join(row)+"\n"
             if r > max_rows : break
         return area
+    def is_in_full_pond(self,x,y):
+
+        # if this is part of a string of 0s that is bounded
+        # by walls to the left right and bottom
+
+        # look left
+        (xx,yy) = (x,y)
+        while canvas.get(xx,yy) in ['0','~']:
+            print("pond: ",canvas.get(xx,yy+1))
+            if canvas.get(xx,yy+1) not in ['~','#'] :
+                return 1
+            xx -= 1
+        if canvas.get(xx,yy) != '#' : return 2
+        # made it to a wall on left
+
+        # look right
+        while canvas.get(xx,yy) in ['0','~'] :
+            if canvas.get(xx,yy+1) not in ['~','#'] :
+                return 3
+            xx += 1
+        if canvas.get(xx,yy) != '#' : return 4
+        # made it to a wall on right
+
+        return 0
+
     def count(self):
         total = 0
         for r in range(self.depth-self.bottom_margin):
@@ -100,57 +125,48 @@ canvas.build(data)
 # print(canvas.as_str())
 
 
-stop = False
 drops = []
-incr = 5
 while True:
-    for n in range(incr):
-        drops.append((s_x,s_y))
-        canvas.set(s_x,s_y,"0")
-        # then move all the drops one step
-        for i in range(len(drops)) :
-            (dx,dy) = drops[i]
-            if dy > canvas.depth : continue # ignore
-            if canvas.get(dx,dy) == '~' : continue # ignore
-            # move to the first, empty adjacent
-            # always try down first...
-            (ax,ay) = down(drops[i])
+    drops.append((s_x,s_y))
+    canvas.set(s_x,s_y,"0")
+    # then move all the drops one step
+    for i in range(len(drops)) :
+        (dx,dy) = drop = drops[i]
+        if dy > canvas.depth : continue # ignore
+        if canvas.get(dx,dy) == '~' : continue # ignore
 
-            # if down is empty
-            if canvas.is_empty(ax,ay): 
-                # make the move to a
-                canvas.set(dx,dy,'|')
-                canvas.set(ax,ay,'0')
-                drops[i] = (ax,ay)
-                continue # to next drop
-            # or if down is drop-blocked
-            elif canvas.get(ax,ay) == 'O' : 
-                continue # skip this one
-            # or try left/right
-            else :
-                moved = False
-                for (ax,ay) in sides(drops[i]):
-                    if not moved and canvas.is_empty(ax,ay):
-                        # make the move to a
-                        canvas.set(dx,dy,'|')
-                        canvas.set(ax,ay,'0')
-                        drops[i] = (ax,ay)
-                        moved = True
-                if moved : continue
+        # always try down first...
+        (ax,ay) = down(drop)
 
-            print("no move to make")
-            canvas.set(dx,dy,'~')
+        # if down is empty
+        if canvas.is_empty(ax,ay): 
+            # make the move to a
+            canvas.set(dx,dy,'|')
+            canvas.set(ax,ay,'0')
+            drops[i] = (ax,ay)
+        # or if down is drop-blocked
+        elif canvas.get(ax,ay) == '0' :
+            print((dx,dy),"O blocked by",(ax,ay)) 
+            pass # skip this one
+        # or try left/right
+        else :
+            moved = False
+            for (ax,ay) in sides(drop):
+                if not moved and canvas.is_empty(ax,ay):
+                    # make the move to a
+                    canvas.set(dx,dy,'|')
+                    canvas.set(ax,ay,'0')
+                    drops[i] = (ax,ay)
+                    moved = True
+            if not moved :
+                v = canvas.is_in_full_pond(dx,dy)
+                print((dx,dy),"had no move to make. v = ",v)
+                if v == 0 : canvas.set(dx,dy,'~')
 
     canvas.set(s_x,s_y,"+") 
     print(canvas.as_str())
 
-    x = input(" Continue?")
-    try:
-        incr = int(x)
-    except:
-        incr = 1
-
-
+    input("Continue?")
 
 
 print("count = ",canvas.count())
