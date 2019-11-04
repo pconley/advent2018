@@ -50,6 +50,7 @@ class Canvas:
         self.width = self.x_max - self.x_min + self.left_margin + self.right_margin + 1
         self.depth = self.y_max + self.bottom_margin + 1
         self.canvas = [ ['.' for c in range(self.width)] for r in range(self.depth)]
+        self.area = self.width * self.depth
     def set(self,x,y,value):
         c = x - self.x_min + self.left_margin
         r = y
@@ -87,7 +88,7 @@ class Canvas:
         # look left
         (xx,yy) = (x,y)
         while canvas.get(xx,yy) in ['0','~']:
-            print("pond: ",canvas.get(xx,yy+1))
+            # print("Lpond: ",canvas.get(xx,yy+1))
             if canvas.get(xx,yy+1) not in ['~','#'] :
                 return 1
             xx -= 1
@@ -95,7 +96,9 @@ class Canvas:
         # made it to a wall on left
 
         # look right
+        (xx,yy) = (x,y)
         while canvas.get(xx,yy) in ['0','~'] :
+            # print("Rpond: ",canvas.get(xx,yy+1))
             if canvas.get(xx,yy+1) not in ['~','#'] :
                 return 3
             xx += 1
@@ -112,6 +115,12 @@ class Canvas:
                     total += 1
         return total
 
+def relevant(pos):
+    (x,y) = pos
+    if y > canvas.depth : return False
+    if canvas.get(x,y) == '~' : return False
+    return True
+
 print ('Argument List:', str(sys.argv))
 data_file = open(sys.argv[1],"r+")  
 lines = data_file.readlines()
@@ -124,16 +133,33 @@ canvas.build(data)
 
 # print(canvas.as_str())
 
+linked = []
 
 drops = []
-while True:
-    drops.append((s_x,s_y))
+looper = 0
+created = 0
+prev_count = -1
+# cant be more than area drops
+max_drops = 39000 # empirical
+while created < max_drops:
+    if created%1000 == 0 :
+        drops = [d for d in drops if relevant(d)]
+        count = canvas.count()
+        print(created,"of",max_drops,"relevant=",len(drops),"count=",count,"({})".format(count-prev_count))
+        if count == prev_count :
+            print("no count change... exiting")
+            break
+        prev_count = count
+
+    if looper%2 == 0 :
+        drops.append((s_x,s_y))
+        created += 1
+    looper += 1
     canvas.set(s_x,s_y,"0")
     # then move all the drops one step
     for i in range(len(drops)) :
         (dx,dy) = drop = drops[i]
-        if dy > canvas.depth : continue # ignore
-        if canvas.get(dx,dy) == '~' : continue # ignore
+        if not relevant(drop) : continue
 
         # always try down first...
         (ax,ay) = down(drop)
@@ -146,7 +172,7 @@ while True:
             drops[i] = (ax,ay)
         # or if down is drop-blocked
         elif canvas.get(ax,ay) == '0' :
-            print((dx,dy),"O blocked by",(ax,ay)) 
+            # print((dx,dy),"O blocked by",(ax,ay)) 
             pass # skip this one
         # or try left/right
         else :
@@ -160,16 +186,14 @@ while True:
                     moved = True
             if not moved :
                 v = canvas.is_in_full_pond(dx,dy)
-                print((dx,dy),"had no move to make. v = ",v)
+                # print((dx,dy),"had no move to make. v = ",v)
                 if v == 0 : canvas.set(dx,dy,'~')
 
-    canvas.set(s_x,s_y,"+") 
-    print(canvas.as_str())
+    # canvas.set(s_x,s_y,"+") 
+    # print(canvas.as_str())
+    # input("Continue?")
 
-    input("Continue?")
-
-
+canvas.set(s_x,s_y,"+") 
+print(canvas.as_str())
 print("count = ",canvas.count())
-# for (dx,dy) in drops :
-#     if dy <= canvas.depth :
-#         print(dx,dy)
+
