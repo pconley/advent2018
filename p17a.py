@@ -81,13 +81,14 @@ class Canvas:
     def is_empty(self,pos):
         return self.pget(pos) in ['.']
     def is_blocked(self,pos):
-        return self.pget(pos) in ['#','~','|','>','<','?']
+        # return self.pget(pos) in ['#','~','|','>','<']
+        return self.pget(pos) in ['#','~','|']
     def build(self,data):
         for (xr,yr) in data :
             for x in xr:
                 for y in yr:
                     self.set(x,y,"#")
-    def as_str(self,max_rows=1000):
+    def as_str(self,max_rows=2000):
         # print("draw:",self.x_min, self.x_max, self.y_min, self.y_max)
         area = ""
         for r in range(len(self.canvas)) :
@@ -95,46 +96,36 @@ class Canvas:
             area += "{:5d}: ".format(r)+"".join(row)+"\n"
             if r > max_rows : break
         return area
-    def is_in_a_pond(self,pos):
-
-        # if this is part of a string of 0s that is bounded
-        # by walls to the left right and bottom
-
+    def is_still_water(self,pos):
+        # if this is part of a string of ?s 
+        # that is bounded by walls to the left right 
         # look left
         (xx,yy) = pos
-        while canvas.get(xx,yy) in ['0','~','|','.','<','>']:
-            # print("Lpond: ",canvas.get(xx,yy+1))
-            if canvas.get(xx,yy+1) not in ['~','#'] :
-                return 1
+        while canvas.get(xx,yy) == '?':
             xx -= 1
-        if canvas.get(xx,yy) != '#' : return 2
+        if canvas.get(xx,yy) != '#' : return None
+        leftie = xx+1
         # made it to a wall on left
-
         # look right
         (xx,yy) = pos
-        while canvas.get(xx,yy) in ['0','~','|','.','<','>'] :
-            # print("Rpond: ",canvas.get(xx,yy+1))
-            if canvas.get(xx,yy+1) not in ['~','#'] :
-                return 3
+        while canvas.get(xx,yy) == '?' :
             xx += 1
-        if canvas.get(xx,yy) != '#' : return 4
+        if canvas.get(xx,yy) != '#' : return None
+        rightie = xx-1
         # made it to a wall on right
-
-        return 0
-
+        return range(leftie,rightie+1)
     def count(self):
         total = 0
         for r in range(self.depth-self.bottom_margin):
+            row_count = 0
             for c in range(self.width):
-                if self.canvas[r][c] in ['|','~','0','<','>'] :
-                    total += 1
+                # if self.canvas[r][c] in ['|','~','0','<','>','?'] :
+                if self.canvas[r][c] not in ['.','#','+'] :
+                    row_count += 1
+            # if r > 1800 : print(r,row_count)
+            if r < 100 : print(r,row_count)
+            total += row_count
         return total
-
-def relevant(pos):
-    (x,y) = pos
-    if y > canvas.depth : return False
-    if canvas.get(x,y) == '~' : return False
-    return True
 
 class Node:
     def __init__(self,pos,parent):
@@ -144,75 +135,64 @@ class Node:
         self.down = None
         self.left = None
         self.right = None
-        self.resolved = False
     def __str__(self):
         return str(self.pos)
     def __lt__(self, other):
         return self.x < other.y
 
-
-tree = []
-heapq.heapify(tree)
-node_set = set([])
-
-def push(node):
-    global tree, node_set
-    print("set:", node_set)
-    print("push:", node.pos)
+def push(heap,node):
+    # print("push:", node.pos)
     tuple = (-node.y,node)
-    if tuple not in node_set:
-        node_set.add(tuple)
-        heapq.heappush(tree,tuple)
+    heapq.heappush(heap,tuple)
 
-def pop():
-    global tree, node_set
-    (y,node) = heapq.heappop(tree)
-    node_set = set(tree)
+def pop(heap):
+    (_,node) = heapq.heappop(heap)
     return node
 
 print ('Argument List:', str(sys.argv))
-data_file = open(sys.argv[1],"r+")  
+run_to = int(sys.argv[2])
+data_file = open(sys.argv[1],"r")
 lines = data_file.readlines()
 data = convert(lines)
 dims = dimensions(data)
+print("dimensions",dims)
 canvas = Canvas(dims)
 canvas.build(data)
 
 root = Node((500,0),None)
 canvas.pset(root.pos,"+")
 
-# print(canvas.as_str())
+# print(canvas.as_str(100))
+# exit()
 
-drops = []
 created = 0
-prev_count = -1
-# cant be more than area drops
-max_drops = 100 # 39000 # empirical
+cursors = []
+heapq.heapify(cursors)
+push(cursors,root)
 
-splits = []
-heapq.heapify(splits)
-
-
-
-push(root)
 loops = 0
-while not root.resolved :
+while cursors :
     loops += 1
 
-    current = pop()
-    print("current = ",current.pos, current.resolved)
-    # if current.resolved == 1 : 
-    #     print("no action")
-    #     continue
+    current = pop(cursors)
+
+    print("current = ",current.pos)
 
     # if we can flow down from current
     (bx,by) = below = down(current.pos)
-    if by < canvas.depth and canvas.is_empty(below) :
+
+    if by >= canvas.depth :
+        pass
+    
+    elif canvas.pget(current.pos) == "~" :
+        pass
+    
+    elif canvas.is_empty(below) :
         node = Node(below, current)
         canvas.pset(node.pos,"|")
         current.down = node
         print("down. push", node.pos)
-        push(node)
+        push(cursors,node)
         created += 1
 
     # flow left/right from current
@@ -224,7 +204,7 @@ while not root.resolved :
             canvas.pset(spot,"<")
             current.right = node
             print("right. push", node.pos)
-            push(node)
+            push(cursors,node)
             created += 1
             added += 1
         spot = left(current.pos)
@@ -233,37 +213,44 @@ while not root.resolved :
             canvas.pset(spot,">")
             current.left = node
             print("left. push", node.pos)
-            push(node)
+            push(cursors,node)
             created += 1
             added += 1
 
-        if added > 0 :
-            print("split: put back on queue to reprocess")
-            heapq.heappush(splits,current)
+        if added == 2 :
+            print("split")
+            # heapq.heappush(cursors,current)
+        elif added == 1 :
+            print("one added")
+        elif added == 0 :
+            canvas.pset(current.pos,"?")
+            print(current.pos,"blocked... put parent")
+            push(cursors,current.parent)
+            v_range = canvas.is_still_water(current.pos)
+            print(current.pos, "is blocked!!!! v_range=",v_range)
+            if v_range :
+                for x in v_range :
+                    canvas.set(x,current.y,"~")
         else :
-            print("blocked")
-            # v = canvas.is_in_a_pond(current.pos)
-            # print(current.pos, "is blocked!!!! v=",v)
-            # if v == 0 :
-            #     canvas.pset(current.pos,"~")
-            #     parent = current.parent
-            #     push(parent)
+            pass
+            # raise NotImplementedError
 
     else :
         pass
         # raise NotImplementedError
 
-    if loops > 0 :
-        print(canvas.as_str())
-        print("The 10 smallest numbers in list are : ",end="") 
-        print(" ".join([str(node.pos) for (y,node) in heapq.nsmallest(10, tree)]))
-        print("The splits are : ",end="") 
-        print(" ".join([str(node.pos) for node in heapq.nsmallest(10, splits)]))
+    if loops > run_to :
+        # print(canvas.as_str(20))
+        # print("The cursors are : ",end="") 
+        # print(" ".join([str(node.pos) for (y,node) in heapq.nsmallest(10, cursors)]))
 
-        input("{}: Continue?".format(loops))
+        cont = input("{}: Continue?".format(loops))
+        try :
+            cont = int(cont)
+        except :
+            cont = 1
+        run_to += cont
 
-
-
-print(canvas.as_str())
+print(canvas.as_str(2000))
 print("count = ",canvas.count())
 
